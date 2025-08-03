@@ -91,7 +91,7 @@ export class MailService implements OnModuleInit {
           await this.transporter.sendMail({
             from: `"Ajay Panchal" <${this.config.get('EMAIL')}>`,
             to: email,
-            subject: `Application for ${jobRole}${companyName ? ' at ' + companyName : ''}`,
+            subject: `Application for ${jobRole}`,
             html,
             attachments: resumePath ? [{ filename: 'Resume.pdf', path: resumePath }] : [],
           });
@@ -125,7 +125,7 @@ export class MailService implements OnModuleInit {
     const emailDoc = await this.mailModel.create({
       to: email,
       name,
-      subject: `Application for ${jobRole}${companyName ? ' at ' + companyName : ''}`,
+      subject: `Application for ${jobRole}`,
       body: `Interest in ${jobRole}${companyName ? ' at ' + companyName : ''}`,
     });
 

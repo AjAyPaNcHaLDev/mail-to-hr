@@ -9,6 +9,7 @@ import {
   Res,
   BadRequestException,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MailService } from './mail.service';
@@ -24,13 +25,15 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { SendSingleEmailDto } from './dto/SendSingleEmailDto';
 import { Response } from 'express';
+import { BodyPasswordGuard } from 'src/common/middleware/auth.middleware';
 
 @ApiTags('Mail')
 @Controller('mail')
 export class MailController {
-  constructor(private readonly mailService: MailService) {}
+  constructor(private readonly mailService: MailService) { }
 
   @Post('send-bulk')
+  @UseGuards(BodyPasswordGuard)
   @ApiOperation({ summary: 'Send emails from uploaded Excel file' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -38,7 +41,9 @@ export class MailController {
       type: 'object',
       properties: {
         file: { type: 'string', format: 'binary' },
+        password: { type: 'string', example: 'supersecret' },
       },
+      required: ['file', 'password'],
     },
   })
   @ApiResponse({ status: 201, description: 'Emails sent successfully' })
@@ -63,6 +68,7 @@ export class MailController {
   }
 
   @Post('send-one')
+  @UseGuards(BodyPasswordGuard)
   @ApiOperation({ summary: 'Send a single email to a recipient' })
   @ApiResponse({ status: 201, description: 'Email sent successfully' })
   async sendOne(@Body() recipientDto: SendSingleEmailDto) {
@@ -71,7 +77,7 @@ export class MailController {
 
   @Get('view/:id')
   async track(@Param('id') id: string, @Res() res: Response) {
-    console.log(id    )
+    console.log(id)
     await this.mailService.markViewed(id);
 
     const pixel = Buffer.from(
@@ -82,7 +88,7 @@ export class MailController {
     res.setHeader('Content-Type', 'image/png');
     res.send(pixel);
   }
-   @Get('sent-emails')
+  @Get('sent-emails')
   @ApiOperation({ summary: 'Retrieve sent emails with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
@@ -91,22 +97,22 @@ export class MailController {
     @Query('limit') limit = 10,
   ) {
     return this.mailService.getSentEmails(+page, +limit);
-  }   
+  }
   @Get('sent-emails-html')
   @ApiOperation({ summary: 'Retrieve sent emails with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   async getSentEmailsWithHtml(
     @Query('page') page = 1,
-    @Query('limit') limit = 10,    @Res() res: Response,
+    @Query('limit') limit = 10, @Res() res: Response,
   ) {
-      const { data, totalPages } = await this.mailService.getSentEmails(+page, +limit);
+    const { data, totalPages } = await this.mailService.getSentEmails(+page, +limit);
     const html = this.buildHtml(data, +page, totalPages, +limit);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
   }
 
-   private buildHtml(data: any[], page: number, totalPages: number, limit: number): string {
+  private buildHtml(data: any[], page: number, totalPages: number, limit: number): string {
     return `
       <html>
         <head>
@@ -175,30 +181,29 @@ export class MailController {
             </thead>
             <tbody>
               ${data
-                .map(
-                  (item) => `
+        .map(
+          (item) => `
                 <tr>
                   <td>${item.name}</td>
                   <td>${item.to}</td>
                   <td>${item.subject}</td>
                   <td>${item.viewed ? '✅ Yes' : '❌ No'}</td>
-                  <td>${item.isSent?new Date(item.createdAt).toLocaleString():"Failed"}</td>
+                  <td>${item.isSent ? new Date(item.createdAt).toLocaleString() : "Failed"}</td>
                 </tr>
               `
-                )
-                .join('')}
+        )
+        .join('')}
             </tbody>
           </table>
           <div class="pagination">
             ${Array.from({ length: totalPages }, (_, i) => i + 1)
-              .map(
-                (p) => `
-              <a href="?page=${p}&limit=${limit}" class="${
-                  p === page ? 'active' : ''
-                }">${p}</a>
+        .map(
+          (p) => `
+              <a href="?page=${p}&limit=${limit}" class="${p === page ? 'active' : ''
+            }">${p}</a>
             `
-              )
-              .join('')}
+        )
+        .join('')}
           </div>
         </body>
       </html>

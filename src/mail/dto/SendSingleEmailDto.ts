@@ -29,4 +29,6 @@ export class SendSingleEmailDto {
   })
   @IsString()
   companyName: string;
+  @IsString()
+  password: string;
 }
